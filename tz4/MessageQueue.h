@@ -38,6 +38,12 @@ public:
 		}
 	}*/
 
+	void pop()
+	{
+		if (!queue.empty()) queue.pop();
+		else throw std::runtime_error("Can't pop empty queue.");
+	}
+
 	void popExpired()
 	{
 		//std::cout << "Pop" << std::endl;
@@ -90,7 +96,6 @@ public:
 private:
 	std::priority_queue<message_type, std::vector<message_type>, std::greater<>> queue;
 	size_t size;
-
 
 	template<typename T> friend class QueueAnalyzer;
 };

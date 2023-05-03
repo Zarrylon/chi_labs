@@ -20,20 +20,15 @@ public:
 		file << "1) Time: " << std::put_time(localtime(&now), "%F %T") << std::endl;
 
 		// queue size
-		auto size = queue_friend.queue.size();
-		file << "2) Queue size: " << size << std::endl;
+		file << "2) Queue size: " << queue_friend.queue.size() << std::endl;
 
-		if (size != 0)
+		if (queue_friend.queue.size() != 0)
 		{
 			// priority count
 			auto q = queue_friend.queue;
 			std::map<int, int> counter;
 
-			while (!q.empty())
-			{
-				counter[std::get<0>(q.top())]++;
-				q.pop();
-			}
+			PriorityPercentage(counter);
 
 			file << "3) " << std::endl;
 			for (auto it = counter.begin(); it != counter.end(); ++it) {
@@ -41,36 +36,55 @@ public:
 			}
 
 			// KB
-			double size_b = (double)queue_friend.queue.size() * sizeof(typename MessageQueue<T>::message_type);
-			file << "4) Size in KB: " << size_b / 1024 << std::endl;
+			file << "4) Size in KB: " << CalculateSizeKB() / 1024 << std::endl;
 
 			// time interval
-			q = queue_friend.queue;
-			auto late_expire = std::get<1>(q.top());
-			auto early_expire = late_expire;
-			q.pop();
-
-			while (!q.empty())
-			{
-				if (std::get<1>(q.top()) < early_expire)
-				{
-					early_expire = std::get<1>(q.top());
-				}
-
-				if (std::get<1>(q.top()) > late_expire)
-				{
-					late_expire = std::get<1>(q.top());
-				}
-
-				q.pop();
-			}
-
-			auto max_interval = std::chrono::duration_cast<std::chrono::seconds>(late_expire - early_expire);
-			file << "5) Max interval: " << max_interval.count() << " seconds" << std::endl << std::endl;
+			file << "5) Max interval: " << MaxInterval().count() << " seconds" << std::endl << std::endl;
 		}
 		else file << "3) -" << std::endl << "4) 0 kb" << std::endl << "5) 0 seconds" << std::endl << std::endl;
+	}
 
-		file.close();
+	void PriorityPercentage(std::map<int, int>& mp)
+	{
+		auto q = queue_friend.queue;
+
+		while (!q.empty())
+		{
+			mp[std::get<0>(q.top())]++;
+			q.pop();
+		}
+	}
+
+	double CalculateSizeKB()
+	{
+		return (double)queue_friend.queue.size() * sizeof(typename MessageQueue<T>::message_type);
+	}
+
+	std::chrono::seconds MaxInterval()
+	{
+		auto q = queue_friend.queue;
+		auto late_expire = std::get<1>(q.top());
+		auto early_expire = late_expire;
+		q.pop();
+
+		while (!q.empty())
+		{
+			if (std::get<1>(q.top()) < early_expire)
+			{
+				early_expire = std::get<1>(q.top());
+			}
+
+			if (std::get<1>(q.top()) > late_expire)
+			{
+				late_expire = std::get<1>(q.top());
+			}
+
+			q.pop();
+		}
+
+		auto max_interval = std::chrono::duration_cast<std::chrono::seconds>(late_expire - early_expire);
+
+		return max_interval;
 	}
 
 	~QueueAnalyzer() = default;
