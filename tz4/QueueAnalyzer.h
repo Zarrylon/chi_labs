@@ -44,6 +44,11 @@ public:
 		else file << "3) -" << std::endl << "4) 0 kb" << std::endl << "5) 0 seconds" << std::endl << std::endl;
 	}
 
+	~QueueAnalyzer() = default;
+
+private:
+	MessageQueue<T>& queue_friend;
+
 	void PriorityPercentage(std::map<int, int>& mp)
 	{
 		auto q = queue_friend.queue;
@@ -86,9 +91,4 @@ public:
 
 		return max_interval;
 	}
-
-	~QueueAnalyzer() = default;
-
-private:
-	MessageQueue<T>& queue_friend;
 };
