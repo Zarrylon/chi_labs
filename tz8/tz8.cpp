@@ -18,20 +18,17 @@ void* messagePushOrPop(MessageQueue<T>& message, std::chrono::system_clock::time
 
     while (flag)
     {
-        std::unique_lock<std::mutex> lock(m);
+        auto rand = distribution(generator);
+        std::this_thread::sleep_for(std::chrono::seconds(rand));
 
+        std::unique_lock<std::mutex> lock(m);
         if (std::chrono::system_clock::now() - start_time > std::chrono::minutes(5))
         {
-            std::cout << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - start_time).count() << std::endl;
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
             flag = false;
             return nullptr;
         }
 
-        auto rand = distribution(generator);
         std::cout << "Rn: " << rand << std::endl;
-
         if (rand % 2 == 0)
         {
             auto exp_time = std::chrono::system_clock::now();
@@ -46,8 +43,6 @@ void* messagePushOrPop(MessageQueue<T>& message, std::chrono::system_clock::time
         }
 
         lock.unlock();
-
-        std::this_thread::sleep_for(std::chrono::seconds(rand));
     }
 }
 
@@ -62,9 +57,6 @@ void* messagePop(MessageQueue<T>& message, std::chrono::system_clock::time_point
 
         if (std::chrono::system_clock::now() - start_time > std::chrono::minutes(5))
         {
-            std::cout << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - start_time).count() << std::endl;
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
             flag = false;
             return nullptr;
         }
@@ -78,7 +70,8 @@ void* messagePop(MessageQueue<T>& message, std::chrono::system_clock::time_point
 }
 
 template<typename T>
-void* messageAnalyzer(MessageQueue<T>& message, QueueAnalyzer<T>& analyzer, std::chrono::system_clock::time_point start_time, std::atomic<bool>& flag)
+void* messageAnalyzer(MessageQueue<T>& message, QueueAnalyzer<T>& analyzer, 
+    std::chrono::system_clock::time_point start_time, std::atomic<bool>& flag, std::atomic<int>& counter)
 {
     std::cout << "Analyzer" << std::endl;
     auto time = std::chrono::system_clock::now();
@@ -91,9 +84,6 @@ void* messageAnalyzer(MessageQueue<T>& message, QueueAnalyzer<T>& analyzer, std:
         std::unique_lock<std::mutex> lock(m);
         if (std::chrono::system_clock::now() - start_time > std::chrono::minutes(5))
         {
-            std::cout << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - start_time).count() << std::endl;
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
             flag = false;
             return nullptr;
         }
@@ -105,6 +95,7 @@ void* messageAnalyzer(MessageQueue<T>& message, QueueAnalyzer<T>& analyzer, std:
                 std::cout << "Queue is full" << std::endl;
                 std::cout << "Thread5: Analyzer called" << std::endl;
 
+                counter++;
                 isFullFirst = false;
                 time = std::chrono::system_clock::now();
                 analyzer.Analyzer("output.txt");
@@ -116,8 +107,11 @@ void* messageAnalyzer(MessageQueue<T>& message, QueueAnalyzer<T>& analyzer, std:
         if (std::chrono::system_clock::now() - time > std::chrono::minutes(1))
         {
             std::cout << "Thread5: Analyzer called" << std::endl;
-            analyzer.Analyzer("output.txt");
+            
+            counter++;
             time = std::chrono::system_clock::now();
+            analyzer.Analyzer("output.txt");
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
 
         lock.unlock();
@@ -132,15 +126,20 @@ int main()
 	QueueAnalyzer<std::string> t(Test);
 	auto start = std::chrono::system_clock::now();
     std::atomic<bool> flag(true);
+    std::atomic<int> counter(0);
 
     std::vector<std::thread> threads;
     threads.emplace_back(messagePushOrPop<std::string>, std::ref(Test), start, std::ref(flag));
     threads.emplace_back(messagePushOrPop<std::string>, std::ref(Test), start, std::ref(flag));
     threads.emplace_back(messagePushOrPop<std::string>, std::ref(Test), start, std::ref(flag));
     threads.emplace_back(messagePop<std::string>, std::ref(Test), start, std::ref(flag));
-    threads.emplace_back(messageAnalyzer<std::string>, std::ref(Test), std::ref(t),start, std::ref(flag));
+    threads.emplace_back(messageAnalyzer<std::string>, std::ref(Test), std::ref(t),start, std::ref(flag), std::ref(counter));
 
     for (auto& thread : threads) {
         thread.join();
     }
+    
+    std::cout << std::endl << "-------------" << std::endl;
+    std::cout << "Analyzer was called: " << counter << " times";
+    std::cout << std::endl << "-------------" << std::endl;
 }
